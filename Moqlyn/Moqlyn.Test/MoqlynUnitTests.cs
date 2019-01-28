@@ -9,6 +9,7 @@ using Moqlyn;
 namespace Moqlyn.Test
 {
     [TestClass]
+    [Ignore]
     public class UnitTest : CodeFixVerifier
     {
 
