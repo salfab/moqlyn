@@ -53,7 +53,7 @@ namespace Moqlyn
                     .OrderByDescending(o => o.Parameters.Length);
 
 
-                if (constructors.All(o => o.Parameters.Length != node.ArgumentList.Arguments.Count))
+                if (constructors.All(o => o.Parameters.Length != node.ArgumentList.Arguments.Count(a => !a.IsMissing)))
                 {
                     var diagnostic = Diagnostic.Create(CompleteCtorDiagnosticDescriptor, node.GetLocation(), node, constructors);
 
