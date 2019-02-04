@@ -108,7 +108,7 @@ namespace Moqlyn
                         if (!mockRepositoryCamelCaseExists)
                         {                            
                             // todo: implement the declaration of a mockRepository variable.
-                            var mockRepositoryAsVariable = this.CreateAndInitializeMockRepositoryAsVariable(document, mockRepositorySymbolName, constructorToComplete);
+                            var mockRepositoryAsVariable = await this.CreateAndInitializeMockRepositoryAsVariable(document, mockRepositorySymbolName, constructorToComplete);
 
                             // insert declaration / inmitialization of mock repository before we do anything with it.
                             rootNode = rootNode
@@ -242,21 +242,34 @@ namespace Moqlyn
             return syntaxGenerator.LocalDeclarationStatement(type, name, initializer);
         }
 
-        private SyntaxNode CreateAndInitializeMockRepositoryAsVariable(
+        private async Task<SyntaxNode> CreateAndInitializeMockRepositoryAsVariable(
             Document document,
             string mockRepositorySymbolName,
             ObjectCreationExpressionSyntax constructorToComplete)
         {
+            var compilationPromise = document.Project.GetCompilationAsync();
             var syntaxGenerator = SyntaxGenerator.GetGenerator(document);
-            // var typeSymbol = document.Project.GetCompilationAsync().Result.GetTypeByMetadataName("Moq.MockRepository");
-            // var type = syntaxGenerator.TypeExpression(typeSymbol, true);
+            var compilation = await compilationPromise;
 
-            // TODO : make sure "using" is set at the begining of the file.            
-            var typeSyntax = SyntaxFactory.ParseTypeName("MockRepository").NormalizeWhitespace();
+            var moqBehaviorSymbol = compilation.GetTypeByMetadataName("Moq.MockBehavior");
+            var moqBehaviorSyntax = (TypeSyntax)syntaxGenerator.TypeExpression(moqBehaviorSymbol, true);
+            var moqBehaviorExpresion = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression, 
+                moqBehaviorSyntax,
+                SyntaxFactory.Token(SyntaxKind.DotToken),
+                SyntaxFactory.IdentifierName("Strict"));
+            var moqBehaviorArgumentsList = SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[] { SyntaxFactory.Argument(moqBehaviorExpresion) }));
 
-            var trivia = constructorToComplete.AncestorsAndSelf().OfType<ExpressionStatementSyntax>().First().GetLeadingTrivia().Last(o => o.IsKind(SyntaxKind.WhitespaceTrivia));
-            var initializer = SyntaxFactory.ObjectCreationExpression(typeSyntax).WithArgumentList(SyntaxFactory.ParseArgumentList("(MockBehavior.Strict)"));
-            return syntaxGenerator.LocalDeclarationStatement(typeSyntax, mockRepositorySymbolName, initializer).NormalizeWhitespace().WithLeadingTrivia(SyntaxTriviaList.Create(trivia));
+            var mockRepositoryTypeSymbol = compilation.GetTypeByMetadataName("Moq.MockRepository");
+            var mockRepositoryTypeSyntax = (TypeSyntax)syntaxGenerator.TypeExpression(mockRepositoryTypeSymbol, true);
+
+            var initializer = SyntaxFactory.ObjectCreationExpression(mockRepositoryTypeSyntax).WithArgumentList(moqBehaviorArgumentsList);
+            var indentation = constructorToComplete.AncestorsAndSelf().OfType<ExpressionStatementSyntax>().First().GetLeadingTrivia().Last(o => o.IsKind(SyntaxKind.WhitespaceTrivia));
+
+            return syntaxGenerator
+                .LocalDeclarationStatement(mockRepositoryTypeSyntax, mockRepositorySymbolName, initializer)
+                .NormalizeWhitespace()
+                .WithLeadingTrivia(SyntaxTriviaList.Create(indentation));
         }
 
         // Or use the SemanticModel from the CSharpCompilation.
