@@ -135,15 +135,24 @@ namespace Moqlyn
             // Handle .ctor arguments
             for (int i = 0; i < parameters.Length; i++)
             {
+                bool argumentHasPlaceholder = false;
                 // create argument to pass
                 var parameter = parameters[i];
                 ArgumentSyntax node;
-                if (passedArguments.Count >= i + 1 && !passedArguments[i].IsMissing)
+                if (passedArguments.Count >= i + 1)
                 {
-                    // break early from the loop if no argument generation is required.
-                    continue;
+                    if (passedArguments[i].IsMissing)
+                    {
+                        argumentHasPlaceholder = true;
+                    }
+                    else
+                    {
+                        // break early from the loop if no argument generation is required.
+                        continue;
+                    }
                 }
-                
+
+
                 if (parameter.Type.IsAbstract)
                 {
                     if (!mockRepositorySymbolExists)
@@ -182,7 +191,14 @@ namespace Moqlyn
                     node = SyntaxFactory.Argument(SyntaxFactory.IdentifierName("TODO"));
                 }
 
-                passedArguments = passedArguments.Insert(i, node);
+                if (argumentHasPlaceholder)
+                {
+                    passedArguments = passedArguments.Replace(passedArguments[i], node);
+                }
+                else
+                {
+                    passedArguments = passedArguments.Insert(i, node);
+                }
             }
 
             var argumentsList = SyntaxFactory.ArgumentList(passedArguments);
