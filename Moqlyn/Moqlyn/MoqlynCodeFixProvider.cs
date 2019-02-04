@@ -85,6 +85,7 @@ namespace Moqlyn
             var passedArguments = constructorToComplete.ArgumentList.Arguments;
             var parameters = constructor.Parameters;
 
+
             if (passedArguments.Count(o => !o.IsMissing) == parameters.Length)
             {
                 return document;
@@ -134,9 +135,24 @@ namespace Moqlyn
             // Handle .ctor arguments
             for (int i = 0; i < parameters.Length; i++)
             {
+                bool argumentHasPlaceholder = false;
                 // create argument to pass
                 var parameter = parameters[i];
                 ArgumentSyntax node;
+                if (passedArguments.Count >= i + 1)
+                {
+                    if (passedArguments[i].IsMissing)
+                    {
+                        argumentHasPlaceholder = true;
+                    }
+                    else
+                    {
+                        // break early from the loop if no argument generation is required.
+                        continue;
+                    }
+                }
+
+
                 if (parameter.Type.IsAbstract)
                 {
                     if (!mockRepositorySymbolExists)
@@ -175,7 +191,14 @@ namespace Moqlyn
                     node = SyntaxFactory.Argument(SyntaxFactory.IdentifierName("TODO"));
                 }
 
-                passedArguments = passedArguments.Insert(i, node);
+                if (argumentHasPlaceholder)
+                {
+                    passedArguments = passedArguments.Replace(passedArguments[i], node);
+                }
+                else
+                {
+                    passedArguments = passedArguments.Insert(i, node);
+                }
             }
 
             var argumentsList = SyntaxFactory.ArgumentList(passedArguments);
@@ -311,7 +334,7 @@ namespace Moqlyn
             var model = compilation.GetSemanticModel(tree);
             return model
                 .LookupSymbols(currentNode.SpanStart, name: symbolToFind)
-                .Any(o => o.Kind == SymbolKind.Property);
+                .Any(o => o.Kind == SymbolKind.Property || o.Kind == SymbolKind.Local);
         }
     }
 
