@@ -85,6 +85,7 @@ namespace Moqlyn
             var passedArguments = constructorToComplete.ArgumentList.Arguments;
             var parameters = constructor.Parameters;
 
+
             if (passedArguments.Count(o => !o.IsMissing) == parameters.Length)
             {
                 return document;
@@ -137,6 +138,12 @@ namespace Moqlyn
                 // create argument to pass
                 var parameter = parameters[i];
                 ArgumentSyntax node;
+                if (passedArguments.Count >= i + 1 && !passedArguments[i].IsMissing)
+                {
+                    // break early from the loop if no argument generation is required.
+                    continue;
+                }
+                
                 if (parameter.Type.IsAbstract)
                 {
                     if (!mockRepositorySymbolExists)
