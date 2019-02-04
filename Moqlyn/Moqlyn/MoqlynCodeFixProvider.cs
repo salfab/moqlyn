@@ -311,7 +311,7 @@ namespace Moqlyn
             var model = compilation.GetSemanticModel(tree);
             return model
                 .LookupSymbols(currentNode.SpanStart, name: symbolToFind)
-                .Any(o => o.Kind == SymbolKind.Property);
+                .Any(o => o.Kind == SymbolKind.Property || o.Kind == SymbolKind.Local);
         }
     }
 
