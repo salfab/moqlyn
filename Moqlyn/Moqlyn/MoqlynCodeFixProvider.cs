@@ -13,6 +13,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Moqlyn
 {
     using System.Collections.Generic;
+    using System.Diagnostics;
 
     using Microsoft.CodeAnalysis.Editing;
     using Microsoft.CodeAnalysis.FindSymbols;
@@ -84,6 +85,53 @@ namespace Moqlyn
             var passedArguments = constructorToComplete.ArgumentList.Arguments;
             var parameters = constructor.Parameters;
 
+            if (passedArguments.Count(o => !o.IsMissing) == parameters.Length)
+            {
+                return document;
+            }
+
+            var compilation = await document.Project.GetCompilationAsync(cancellationToken);
+
+            // Handle MockRepository
+
+            // The handler will be a pass-through by default.
+            Func<SyntaxNode, Task<SyntaxNode>> mockRepositoryRootNodeHandler = null;
+
+            bool mockRepositorySymbolExists = false;
+
+            var mockRepositorySymbolName = "MockRepository";
+            mockRepositorySymbolExists = this.CompilationLookUpSymbols(
+                constructorToComplete,
+                mockRepositorySymbolName,
+                compilation);
+
+            if (!mockRepositorySymbolExists)
+            {
+                mockRepositorySymbolName = "mockRepository";
+                mockRepositorySymbolExists = this.CompilationLookUpSymbols(
+                    constructorToComplete,
+                    mockRepositorySymbolName,
+                    compilation);
+            }
+
+            if (!mockRepositorySymbolExists)
+            {
+                // we use the handlers mechanism, because even if the mockRepository doesn't exist, we aren't sure yet if we're going to need it.
+                // This is why we will only call the handler conditionnally, later on.
+                mockRepositoryRootNodeHandler = async rn =>
+                    {                        
+                        var mockRepositoryAsVariable = await this.CreateAndInitializeMockRepositoryAsVariable(document, mockRepositorySymbolName, constructorToComplete);
+
+                        // insert declaration / instantiation of mock repository before we do anything with it.
+                        return rn.InsertNodesBefore(
+                            rn
+                                .GetCurrentNode(constructorToComplete)
+                                .FirstAncestorOrSelf<ExpressionStatementSyntax>(),
+                            new[] { mockRepositoryAsVariable });
+                    };
+            }
+
+            // Handle .ctor arguments
             for (int i = 0; i < parameters.Length; i++)
             {
                 // create argument to pass
@@ -91,33 +139,13 @@ namespace Moqlyn
                 ArgumentSyntax node;
                 if (parameter.Type.IsAbstract)
                 {
-                    var compilation = document.Project.GetCompilationAsync().Result;
-
-                    var mockRepositorySymbolName = "MockRepository";
-                    var mockRepositoryPascalCaseExists = this.CompilationLookUpSymbols(
-                        constructorToComplete,
-                        mockRepositorySymbolName,
-                        compilation);
-                    if (!mockRepositoryPascalCaseExists)
+                    if (!mockRepositorySymbolExists)
                     {
-                        mockRepositorySymbolName = "mockRepository";
-                        var mockRepositoryCamelCaseExists = this.CompilationLookUpSymbols(
-                            constructorToComplete,
-                            mockRepositorySymbolName,
-                            compilation);
-                        if (!mockRepositoryCamelCaseExists)
-                        {                            
-                            // todo: implement the declaration of a mockRepository variable.
-                            var mockRepositoryAsVariable = await this.CreateAndInitializeMockRepositoryAsVariable(document, mockRepositorySymbolName, constructorToComplete);
+                        Debug.Assert(mockRepositoryRootNodeHandler != null, $"there's a bug here: " + nameof(mockRepositoryRootNodeHandler) +" can't be null");
 
-                            // insert declaration / inmitialization of mock repository before we do anything with it.
-                            rootNode = rootNode
-                                .InsertNodesBefore(
-                                    rootNode
-                                        .GetCurrentNode(constructorToComplete)
-                                        .FirstAncestorOrSelf<ExpressionStatementSyntax>(),
-                                    new[] { mockRepositoryAsVariable });
-                        }
+                        rootNode = await mockRepositoryRootNodeHandler(rootNode);
+
+                        mockRepositorySymbolExists = true;
                     }
 
                     // TODO: add support for settings to create properties instead of variables : useful for MSpec and inherited contexts.
@@ -128,11 +156,11 @@ namespace Moqlyn
                         mockRepositorySymbolName);
 
                     rootNode = await this.InsertMockSymbolAsVariableInDocumentAsync(
-                                   mockSymbolAsVariable,
-                                   constructorToComplete,
-                                   document,
-                                   cancellationToken,
-                                   rootNode);
+                                                          mockSymbolAsVariable,
+                                                          constructorToComplete,
+                                                          document,
+                                                          cancellationToken,
+                                                          rootNode);
 
                     // TODO: If we delegate the creation of the syntax to a dedicated service :
                     // the next line will also be in the responsibility of that service, since the implementation is specific to lcoal variables (not compatible with Properties)
@@ -256,7 +284,7 @@ namespace Moqlyn
             var moqBehaviorExpresion = SyntaxFactory.MemberAccessExpression(
                 SyntaxKind.SimpleMemberAccessExpression, 
                 moqBehaviorSyntax,
-                SyntaxFactory.Token(SyntaxKind.DotToken),
+                SyntaxFactory.Token(SyntaxKind.DotToken),                                
                 SyntaxFactory.IdentifierName("Strict"));
             var moqBehaviorArgumentsList = SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[] { SyntaxFactory.Argument(moqBehaviorExpresion) }));
 
