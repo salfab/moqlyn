@@ -127,7 +127,7 @@ namespace Moqlyn
                         return rn.InsertNodesBefore(
                             rn
                                 .GetCurrentNode(constructorToComplete)
-                                .FirstAncestorOrSelf<ExpressionStatementSyntax>(),
+                                .FirstAncestorOrSelf<StatementSyntax>(),
                             new[] { mockRepositoryAsVariable });
                     };
             }
@@ -224,7 +224,7 @@ namespace Moqlyn
 
 
             return rootNode.InsertNodesBefore(
-                rootNode.GetCurrentNode(objectCreationUsingMocks).FirstAncestorOrSelf<ExpressionStatementSyntax>(),
+                rootNode.GetCurrentNode(objectCreationUsingMocks).FirstAncestorOrSelf<StatementSyntax>(),
                 new[] { mockSymbolAsVariable });
         }
 
@@ -315,7 +315,7 @@ namespace Moqlyn
             var mockRepositoryTypeSyntax = (TypeSyntax)syntaxGenerator.TypeExpression(mockRepositoryTypeSymbol, true);
 
             var initializer = SyntaxFactory.ObjectCreationExpression(mockRepositoryTypeSyntax).WithArgumentList(moqBehaviorArgumentsList);
-            var indentation = constructorToComplete.AncestorsAndSelf().OfType<ExpressionStatementSyntax>().First().GetLeadingTrivia().Last(o => o.IsKind(SyntaxKind.WhitespaceTrivia));
+            var indentation = constructorToComplete.AncestorsAndSelf().OfType<StatementSyntax>().First().GetLeadingTrivia().Last(o => o.IsKind(SyntaxKind.WhitespaceTrivia));
 
             return syntaxGenerator
                 .LocalDeclarationStatement(mockRepositoryTypeSyntax, mockRepositorySymbolName, initializer)
