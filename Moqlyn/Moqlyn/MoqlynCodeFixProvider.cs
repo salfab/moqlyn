@@ -253,9 +253,9 @@ namespace Moqlyn
                 Casing.PascalCase,
                 parameter,
                 document,
-                mockRepositorySymbolName);
+                mockRepositorySymbolName, 
+                mockedObjectTypeStrategy);
         }
-
 
         /// <summary>Creates the mocked argument symbol as variable.</summary>
         /// <param name="namingFormat">The naming format.</param>
@@ -263,6 +263,7 @@ namespace Moqlyn
         /// <param name="parameter">The parameter.</param>
         /// <param name="document"></param>
         /// <param name="mockRepositorySymbolName"></param>
+        /// <param name="mockedObjectTypeStrategy"></param>
         /// <returns>The symbol of the declaration for the mock object.</returns>
         /// <exception cref="ArgumentOutOfRangeException">parameterNameCasing - null</exception>
         private SyntaxNode CreateMockedArgumentSymbolAsVariable(
@@ -270,7 +271,8 @@ namespace Moqlyn
             Casing parameterNameCasing,
             IParameterSymbol parameter,
             Document document,
-            string mockRepositorySymbolName)
+            string mockRepositorySymbolName,
+            MockedObjectTypeStrategy mockedObjectTypeStrategy)
         {
             string parameterName;
             switch (parameterNameCasing)
@@ -285,15 +287,28 @@ namespace Moqlyn
                     throw new ArgumentOutOfRangeException(nameof(parameterNameCasing), parameterNameCasing, null);
             }
 
-            var typeSymbol = document.Project.GetCompilationAsync().Result.GetTypeByMetadataName("Moq.Mock`1")
-                .Construct(parameter.Type);
+
+            ITypeSymbol typeSymbol;
+            switch (mockedObjectTypeStrategy)
+            {
+                case MockedObjectTypeStrategy.MockOfT:
+                    typeSymbol = document.Project.GetCompilationAsync().Result.GetTypeByMetadataName("Moq.Mock`1")
+                        .Construct(parameter.Type);
+                    break;
+                case MockedObjectTypeStrategy.TypeOfObject:
+                    typeSymbol = parameter.Type;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mockedObjectTypeStrategy), mockedObjectTypeStrategy, null);
+            }
+            
 
             var name = string.Format(namingFormat, parameterName);
             var syntaxGenerator = SyntaxGenerator.GetGenerator(document);
             var type = syntaxGenerator.TypeExpression(typeSymbol, true);
 
             // TODO: Add support for different of initialization approaches: loose mocks (ugh), new statements, and alternatie naming of the MockRepository (camel-casing ?)
-            SyntaxNode initializer = SyntaxFactory.InvocationExpression(
+            InvocationExpressionSyntax mockObjectInitializer = SyntaxFactory.InvocationExpression(
                 SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
                     SyntaxFactory.IdentifierName(mockRepositorySymbolName),
@@ -304,6 +319,24 @@ namespace Moqlyn
                                     parameter.CanBeReferencedByName
                                         ? parameter.Type.Name
                                         : parameter.Type.ToDisplayString()))))).NormalizeWhitespace());
+
+            SyntaxNode initializer;
+            switch (mockedObjectTypeStrategy)
+            {
+                case MockedObjectTypeStrategy.MockOfT:
+                    initializer = SyntaxFactory.InvocationExpression(
+                        SyntaxFactory.MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            mockObjectInitializer,
+                            SyntaxFactory.Token(SyntaxKind.DotToken),
+                            SyntaxFactory.IdentifierName("Object")));
+                    break;
+                case MockedObjectTypeStrategy.TypeOfObject:
+                    initializer = mockObjectInitializer;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mockedObjectTypeStrategy), mockedObjectTypeStrategy, null);
+            }
 
             return syntaxGenerator.LocalDeclarationStatement(type, name, initializer);
         }
