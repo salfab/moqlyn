@@ -166,10 +166,12 @@ namespace Moqlyn
 
                     // TODO: add support for settings to create properties instead of variables : useful for MSpec and inherited contexts.
                     // Note: this implementation is variable-specific, because the declaration and assignment will be done in one line. Properties can't do that.
+                    var mockedObjectTypeStrategy = MockedObjectTypeStrategy.TypeOfObject;
                     var mockSymbolAsVariable = this.CreateAndInitializeInjectedMockSymbolAsVariable(
                         parameter,
                         document,
-                        mockRepositorySymbolName);
+                        mockRepositorySymbolName, 
+                        mockedObjectTypeStrategy);
 
                     rootNode = await this.InsertMockSymbolAsVariableInDocumentAsync(
                                                           mockSymbolAsVariable,
@@ -231,10 +233,23 @@ namespace Moqlyn
         private SyntaxNode CreateAndInitializeInjectedMockSymbolAsVariable(
             IParameterSymbol parameter,
             Document document,
-            string mockRepositorySymbolName)
+            string mockRepositorySymbolName,
+            MockedObjectTypeStrategy mockedObjectTypeStrategy)
         {
+            string symbolName;
+            switch (mockedObjectTypeStrategy)
+            {
+                case MockedObjectTypeStrategy.MockOfT:
+                symbolName = "injected{0}Mock";
+                    break;
+                case MockedObjectTypeStrategy.TypeOfObject:
+                symbolName = "injected{0}";
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mockedObjectTypeStrategy), mockedObjectTypeStrategy, null);
+            }
             return this.CreateMockedArgumentSymbolAsVariable(
-                "injected{0}Mock",
+                symbolName,
                 Casing.PascalCase,
                 parameter,
                 document,
