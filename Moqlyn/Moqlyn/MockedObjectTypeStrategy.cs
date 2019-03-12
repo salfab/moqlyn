@@ -1,6 +1,6 @@
 namespace Moqlyn
 {
-    internal enum MockedObjectTypeStrategy
+    public enum MockedObjectTypeStrategy
     {
         /// <summary>
         /// The generated symbol will be of type Mock<T>, and will be named injectedXxxMock. The actual mocked object can be accessed through the Mock<T>.Object property.
