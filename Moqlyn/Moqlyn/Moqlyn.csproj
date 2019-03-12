@@ -25,6 +25,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="2.6.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="2.9.0-beta4-63006-05" PrivateAssets="all" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
   </ItemGroup>
 
@@ -38,8 +39,4 @@
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="Newtonsoft.Json">
-    </Reference>
-  </ItemGroup>
 </Project>
