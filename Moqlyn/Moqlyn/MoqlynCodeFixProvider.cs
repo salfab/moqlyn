@@ -417,15 +417,15 @@ namespace Moqlyn
             SyntaxNode initializer;
             switch (mockedObjectTypeStrategy)
             {
-                case MockedObjectTypeStrategy.MockOfT:
-                    initializer = SyntaxFactory.InvocationExpression(
+                case MockedObjectTypeStrategy.TypeOfObject:
+                    initializer = 
                         SyntaxFactory.MemberAccessExpression(
                             SyntaxKind.SimpleMemberAccessExpression,
                             mockObjectInitializer,
                             SyntaxFactory.Token(SyntaxKind.DotToken),
-                            SyntaxFactory.IdentifierName("Object")));
+                            SyntaxFactory.IdentifierName("Object"));
                     break;
-                case MockedObjectTypeStrategy.TypeOfObject:
+                case MockedObjectTypeStrategy.MockOfT:
                     initializer = mockObjectInitializer;
                     break;
                 default:
