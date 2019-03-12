@@ -397,25 +397,9 @@ namespace Moqlyn
                     throw new ArgumentOutOfRangeException(nameof(parameterNameCasing), parameterNameCasing, null);
             }
 
-
-            ITypeSymbol typeSymbol;
-            switch (mockedObjectTypeStrategy)
-            {
-                case MockedObjectTypeStrategy.MockOfT:
-                    typeSymbol = document.Project.GetCompilationAsync().Result.GetTypeByMetadataName("Moq.Mock`1")
-                        .Construct(parameter.Type);
-                    break;
-                case MockedObjectTypeStrategy.TypeOfObject:
-                    typeSymbol = parameter.Type;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(mockedObjectTypeStrategy), mockedObjectTypeStrategy, null);
-            }
-            
-
             var name = string.Format(namingFormat, parameterName);
             var syntaxGenerator = SyntaxGenerator.GetGenerator(document);
-            var type = syntaxGenerator.TypeExpression(typeSymbol, true);
+            var type = syntaxGenerator.IdentifierName("var");
 
             // TODO: Add support for different of initialization approaches: loose mocks (ugh), new statements, and alternatie naming of the MockRepository (camel-casing ?)
             InvocationExpressionSyntax mockObjectInitializer = SyntaxFactory.InvocationExpression(
